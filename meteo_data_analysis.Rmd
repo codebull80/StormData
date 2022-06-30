@@ -1,0 +1,156 @@
+---
+title: "NOAA Storm Database Analysis"
+author: "BullCode"
+date: '2022-06-28'
+output: html_document
+---
+
+## Synopsis
+
+Based on analysis of data available in the NDAA database, tornadoes are the weather phenomenon that, by far, are responsible for causing economic damage in the United States. Equally they are also responsible for the largest number of accidents and human fatalities.
+
+## Introduction
+
+The  primary objective of this study is to examine the NOAA Storm Database and provide basic responses to inquiries concerning severe weather incidents. 
+
+- Which weather events are the most detrimental to population health in the United States?
+
+- Which events in the United States have the most significant economic repercussions?
+
+## Materials and Methods
+
+Loading R packages needed for the study.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE )
+```
+
+```{r,results='hide'}
+library(tidyverse)
+library(lubridate)
+library(gridExtra)
+```
+
+### Data Processing
+
+Downloading the data in R
+
+```{r}
+fileUrl <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+
+download.file(fileUrl, "StormData.csv.bz2", method="curl")
+
+
+meteo_data<- read.csv("StormData.csv.bz2", header = TRUE, sep = ",")
+```
+Having a first look to the database. 
+```{r}
+str(meteo_data)
+```
+
+Parsing the date with lubridate package
+
+```{r}
+BGN_DATE<- mdy_hms(meteo_data$BGN_DATE)
+meteo_data$BGN_DATE<- BGN_DATE
+meteo_data$EVTYPE<- as.character(meteo_data$EVTYPE)
+```
+
+## Results
+
+Using aggregate to sum the fatalities and injuries due to each weather fenomena
+
+```{r,results='hide'}
+fatalities<- aggregate(FATALITIES~EVTYPE, meteo_data, sum)
+arrange(fatalities, desc(FATALITIES))
+
+injuries<- aggregate(INJURIES~EVTYPE, meteo_data, sum)
+arrange(injuries, desc(INJURIES))
+```
+Plotting the results. Tornado are in the first position.
+
+```{r}
+fatalities %>% 
+    arrange(desc(FATALITIES)) %>%
+    top_n(n=10, FATALITIES)  %>%
+     ggplot(aes(x=reorder(EVTYPE,-FATALITIES), y=FATALITIES))+
+
+        geom_bar(stat="identity")+
+        scale_x_discrete(guide = guide_axis(angle = 90))+
+        labs(x=NULL, title="Top 10 Weather Events for fatalities") ->g1
+
+```
+
+```{r}
+injuries %>% 
+    arrange(desc(INJURIES)) %>%
+    top_n(n=10, INJURIES)  %>%
+    ggplot(aes(x=reorder(EVTYPE,-INJURIES), y=INJURIES))+
+        geom_bar(stat="identity")+
+        scale_x_discrete(guide = guide_axis(angle = 90))+
+        labs(x=NULL, title="Top 10 Weather Events for injuries")->g2
+        
+```
+
+```{r}
+grid.arrange(g1, g2, ncol=2)
+```
+
+Calculating the economic burden.
+
+```{r, results='hide'}
+crop_damage<- aggregate(CROPDMG~EVTYPE, meteo_data, sum)
+arrange(crop_damage, desc(CROPDMG))
+
+prop_damage<- aggregate(PROPDMG~EVTYPE, meteo_data, sum)
+arrange(prop_damage, desc(PROPDMG))
+```
+
+```{r}
+prop_damage %>% 
+    arrange(desc(PROPDMG)) %>%
+    top_n(n=10, PROPDMG)  %>%
+    ggplot(aes(x=reorder(EVTYPE,-PROPDMG), y=PROPDMG))+
+        geom_bar(stat="identity")+
+        scale_x_discrete(guide = guide_axis(angle = 90))+
+        labs(x=NULL, title="Top 10 Events for property damage")->g3
+
+```
+
+```{r}
+crop_damage %>% 
+    arrange(desc(CROPDMG)) %>%
+    top_n(n=10, CROPDMG)  %>%
+    ggplot(aes(x=reorder(EVTYPE,-CROPDMG), y=CROPDMG))+
+        geom_bar(stat="identity")+
+        scale_x_discrete(guide = guide_axis(angle = 90))+
+        labs(x=NULL, title="Top 10 Events for crop damage")->g4
+```
+
+```{r}
+grid.arrange(g3, g4, ncol=2)
+```
+
+```{r}
+meteo_data<- mutate(meteo_data, TOTDMG=PROPDMG+CROPDMG)
+```
+Calculating the total economic consequences of the most severe weather conditions.
+
+```{r, results='hide'}
+tot_damage<- aggregate(TOTDMG~EVTYPE, meteo_data, sum)
+arrange(tot_damage, desc(TOTDMG))
+```
+
+```{r}
+tot_damage %>% 
+    arrange(desc(TOTDMG)) %>%
+    top_n(n=10, TOTDMG)  %>%
+    ggplot(aes(x=reorder(EVTYPE,-TOTDMG), y=TOTDMG))+
+        geom_bar(stat="identity")+
+        scale_x_discrete(guide = guide_axis(angle = 90))+
+        labs(x=NULL, title="Top 10 Events for economic damage")
+```
+
+
+## Conclusion
+Tornadoes are the weather phenomenon that, by far, are responsible for causing economic damage in the United States. Equally they are responsible for the largest number of accidents and human fatalities.
